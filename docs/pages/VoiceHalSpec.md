@@ -311,7 +311,7 @@ must be polled with `getParameters`; none of them can be subscribed to. A caller
 event-driven design around voice line status or registration state has no mechanism here to do it.
 
 That single event carries a semicolon-terminated list of firewall rule tuples — per tuple an enable
-flag, a protocol, a port and an address. The schema constrains the protocol to `SIP` or `RTP` and the
+flag, a protocol, a port and an address. The schema constrains the protocol to `sip` or `rtp` and the
 address to an `IPv4` or `IPv6` literal, with the exact validating expression given in
 [halSpecDetailed.md](halSpecDetailed.md) rather than reproduced here. The manager consumes the
 event by matching the event name and applying the rules for the affected voice service instance
@@ -410,7 +410,9 @@ indistinguishable to the caller from a hung server, and costs the caller the ful
 
 **Validation is the sender's job on both sides.** Because nothing validates a message on the way in,
 a caller that wants a malformed request caught at all must validate its own outbound messages against
-[`hal_schema/telcovoice_hal_schema.json`](../../hal_schema/telcovoice_hal_schema_v2.json) before sending them, and a
+the schema variant selected for the build —
+[`telcovoice_hal_schema_v1.json`](../../hal_schema/telcovoice_hal_schema_v1.json) or
+[`telcovoice_hal_schema_v2.json`](../../hal_schema/telcovoice_hal_schema_v2.json) — before sending them, and a
 vendor server must apply the parameter constraints in [halSpecDetailed.md](halSpecDetailed.md) in its handler. Neither
 side is protected by the other.
 
@@ -500,7 +502,7 @@ latency bound must impose its own:
 
 | Bound | Value | Consequence |
 | --- | --- | --- |
-| Request size | 16384 bytes, the fixed server receive buffer [`json_rpc_common.h`, `tcp_server.c`] | A single request must fit. The server does not accumulate across reads, so a larger request arrives as unparseable fragments; the caller must split the payload across requests. |
+| Request receive buffer | 16384 bytes, the fixed server receive buffer [`json_rpc_common.h`, `tcp_server.c`] | The server parses only the bytes returned by a single `recv()` and does not accumulate requests across reads. Therefore, even a request smaller than 16384 bytes must arrive completely in one read to be parsed successfully; TCP does not guarantee this. | 
 | Reply size | No stated ceiling, and no framing. The client accumulates a multi-chunk reply on the heap and treats any short read as the end of it [`tcp_client.c`] | A reply larger than one buffer is delivered whole. A caller must not impose a 16384-byte expectation on a reply, and must not assume a bound the transport does not state. |
 | Reply wait, shortest | 40 ticks, nominally about 10 seconds | The floor described in `Blocking calls`. It bounds receive-loop passes rather than elapsed time, so treat the seconds figure as nominal. |
 | Reply wait, longest | 480 ticks, nominally about 120 seconds | The cap. A longer request timeout is reduced to it, and the same tick-versus-clock caveat applies. |
@@ -582,7 +584,9 @@ A client and a vendor server that disagree on this value cannot interoperate, be
 one of the four required envelope fields and is a `const` in the schema — a mismatch makes the
 message invalid rather than merely unrecognised. This is the identity a caller negotiates against,
 and it advances independently of the repository's release tag.
-This HAL contract has no compile-time variability flag.
+The parameter-tree variant is selected at build time using
+`FEATURE_RDKB_VOICE_DM_TR104_V2`: when disabled the v1 schema is used, and when enabled the v2
+schema is used.
 
 ### Platform or Product Customization
 
@@ -710,7 +714,7 @@ segments, an absolute path anywhere in the filesystem, a symbolic link, a device
 whitespace, so validating a `getSchemaResponse` says nothing about the safety of the string it
 carries. The only supported check is **exact string equality against the configured
 `hal_schema_path`**, `/etc/rdk/schemas/telcovoice_hal_schema.json`
-[`config/telcovoice_manager_conf.json`] — which is also the only schema location the transport
+[`hal_schema/telcovoice_manager_conf.json`](../../hal_schema/telcovoice_manager_conf.json) — which is also the only schema location the transport
 library itself opens, doing so from the local configuration file during client initialization and
 never from a server reply]. A caller must not open, stat, read,
 resolve, canonicalise or shell out to the returned value, must not derive a new path from it, and
