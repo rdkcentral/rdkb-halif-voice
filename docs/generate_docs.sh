@@ -221,7 +221,7 @@ HAL_GENERATOR_URL="git@github.com:rdkcentral/hal-doxygen.git"
 HAL_GENERATOR_HOST="github.com"
 HAL_GENERATOR_PATH="rdkcentral/hal-doxygen"
 
-# In the future this should moved to a fixed verison
+# In the future this should be moved to a fixed version
 HAL_GENERATOR_VERSION=1.2.0
 
 # The commit that tag must resolve to, read from the authoritative remote with
